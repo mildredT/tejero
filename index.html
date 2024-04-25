@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Classification</title>
+    <link href="assets/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body style="background-color: rgb(215, 236, 250);">
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col-md-6 offset-md-3">
+                <h2 class="text-center mb-4">CHATBERT DETECTION</h2>
+                <div class="form-group">
+                    <textarea class="form-control" id="textInput" rows="5"
+                        placeholder="Enter text to Generate"></textarea>
+                </div>
+                <button class="btn btn-primary btn-block" onclick="classifyText()">Generate</button>
+                <div class="result mt-4">
+                    <canvas id="classificationChart"></canvas>
+                </div>
+                <div class="mt-4" id="inputTextDisplay"></div>
+                <div class="mt-4" id="percentageDisplay"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/jq.min.js"></script>
+    <script src="assets/js/popper.min.js"></script>
+    <script src="assets/js/bst.min.js"></script>
+    <script src="assets/js/chart.min.js"></script>
+    <script src="assets/js/chart-datalabels.min.js"></script>
+    <script>
+        function classifyText() {
+            const text = document.getElementById('textInput').value;
+
+            fetch(`http://127.0.0.1:5000/classify`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ text: text })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    const humanPercentage = Math.round(data.human_probability * 100);
+                    const chatgptPercentage = Math.round(data.chatgpt_probability * 100);
+
+                    // Update chart
+                    updateChart(humanPercentage, chatgptPercentage);
+
+                    // Display percentages
+                    const percentageDisplay = document.getElementById('percentageDisplay');
+                    percentageDisplay.innerHTML = `Human: ${humanPercentage}%<br>ChatGPT: ${chatgptPercentage}%`;
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        let chart = null; // Declare chart variable outside the function
+
+        function updateChart(humanPercentage, chatgptPercentage) {
+            if (chart) {
+                chart.destroy(); // Destroy the existing chart if it exists
+            }
+
+            const ctx = document.getElementById('classificationChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Human', 'ChatGPT'],
+                    datasets: [{
+                        data: [humanPercentage, chatgptPercentage],
+                        backgroundColor: ['#36a2eb', '#ff6384']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    title: {
+                        display: true,
+                        text: 'Text Classification Results'
+                    },
+                    tooltips: {
+                        callbacks: {
+                            label: function (tooltipItem, data) {
+                                var dataset = data.datasets[tooltipItem.datasetIndex];
+                                var total = dataset.data.reduce(function (previousValue, currentValue, currentIndex, array) {
+                                    return previousValue + currentValue;
+                                });
+                                var currentValue = dataset.data[tooltipItem.index];
+                                var percentage = Math.round((currentValue / total) * 100);
+                                return percentage + '%'; // Display percentage as tooltip
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+    </script>
+</body>
+
+</html>
